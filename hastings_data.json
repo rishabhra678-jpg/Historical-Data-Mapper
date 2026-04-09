@@ -1,0 +1,26 @@
+{
+  "project": "Chrono Map AI",
+  "narrative": "The Norman Conquest 1066",
+  "timeline": [
+    {
+      "date": "1066-09-28",
+      "event": "Landing at Pevensey",
+      "coordinates": {
+        "lat": 50.8194,
+        "lng": 0.3361
+      },
+      "description": "William the Conqueror lands his fleet on the south coast of England.",
+      "importance": "High"
+    },
+    {
+      "date": "1066-10-14",
+      "event": "Battle of Hastings",
+      "coordinates": {
+        "lat": 50.9155,
+        "lng": 0.4842
+      },
+      "description": "The decisive battle between Norman-French and English forces.",
+      "importance": "Critical"
+    }
+  ]
+}
