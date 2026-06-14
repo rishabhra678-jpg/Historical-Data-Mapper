@@ -121,7 +121,8 @@ class SpatiotemporalExtractor:
         blacklist = {"south coast", "north coast", "east coast", "west coast", 
                      "northern england", "southern england", "neman river", 
                      "remnants", "remnant", "south", "north", "east", "west",
-                     "silk road", "channel", "english channel", "sea", "ocean"}
+                     "silk road", "channel", "english channel", "sea", "ocean",
+                     "england", "russia", "france", "china"}
         
         # 1. First extract using spaCy NER if available
         if nlp:

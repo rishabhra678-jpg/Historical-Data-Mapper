@@ -522,6 +522,21 @@ with col_map:
     
     # Map focus on active coordinates
     active_coords = active_event["coords"]
+    
+    # Set dynamic zoom start and fallback center based on historical preset scale
+    zoom_val = 5
+    fallback_center = (55.0, 3.0)  # default focus on North Europe (North Sea)
+    
+    if "Marco Polo" in preset_choice or (json_data and "Marco Polo" in json_data.get("narrative", "")):
+        zoom_val = 4
+        fallback_center = (39.0, 75.0)  # Silk Road / Kashgar region center
+    elif "Napoleon" in preset_choice or (json_data and "Napoleon" in json_data.get("narrative", "")):
+        zoom_val = 5
+        fallback_center = (55.0, 30.0)  # Western Russia Campaign center
+    elif "Norman" in preset_choice or (json_data and "Norman" in json_data.get("narrative", "")):
+        zoom_val = 5
+        fallback_center = (55.0, 3.0)   # North Europe center
+        
     # Fallback if active event has no coords: find nearest preceding geocoded event
     if active_coords is None:
         for temp_ev in reversed(events[:st.session_state.current_step]):
@@ -529,12 +544,12 @@ with col_map:
                 active_coords = temp_ev["coords"]
                 break
     if active_coords is None:
-        active_coords = (51.5074, -0.1278)  # London default fallback
+        active_coords = fallback_center
     
     # Initialize Folium Map
     m = folium.Map(
         location=active_coords,
-        zoom_start=7,
+        zoom_start=zoom_val,
         tiles="cartodb dark_matter" if map_style == "CartoDB Dark Matter" else 
               ("cartodb positron" if map_style == "CartoDB Positron" else "OpenStreetMap")
     )
