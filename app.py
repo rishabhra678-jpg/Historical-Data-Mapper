@@ -1,5 +1,4 @@
 import streamlit as st
-import streamlit.components.v1 as components
 import pandas as pd
 import numpy as np
 import folium
@@ -695,11 +694,11 @@ with col_map:
     with col_ctrl_btn:
         col_btn_prev, col_btn_next, col_btn_reset = st.columns(3)
         with col_btn_prev:
-            st.button("⏮️ Prev", disabled=(st.session_state.current_step == 0), on_click=prev_step_cb, use_container_width=True)
+            st.button("⏮️ Prev", disabled=(st.session_state.current_step == 0), on_click=prev_step_cb, width="stretch")
         with col_btn_next:
-            st.button("Next ⏭️", disabled=(st.session_state.current_step == num_steps - 1), on_click=next_step_cb, use_container_width=True)
+            st.button("Next ⏭️", disabled=(st.session_state.current_step == num_steps - 1), on_click=next_step_cb, width="stretch")
         with col_btn_reset:
-            st.button("🔄 Reset", on_click=reset_step_cb, use_container_width=True)
+            st.button("🔄 Reset", on_click=reset_step_cb, width="stretch")
             
     # Display distance traveler
     with col_dist:
@@ -739,7 +738,7 @@ with col_timeline:
     st.markdown("<h3 style='margin: 0 0 10px 0; font-size: 1.3rem;'>📅 Chronological Timeline</h3>", unsafe_allow_html=True)
     # Render the timeline inside a custom iframe component with CSS & JS auto-scrolling
     html_code = render_timeline_html(events, st.session_state.current_step)
-    components.html(html_code, height=480, scrolling=False)
+    st.iframe(html_code, height=480)
 
 # --- LOWER SECTION: DATA, ANALYTICS & SOURCES ---
 st.markdown("<br/><br/>", unsafe_allow_html=True)
@@ -798,7 +797,7 @@ with tab_milestones:
         paper_bgcolor="rgba(0,0,0,0)",
         yaxis_range=[-0.5, 0.5]
     )
-    st.plotly_chart(fig_timeline, use_container_width=True)
+    st.plotly_chart(fig_timeline, width="stretch")
 
 # 2. NLP Metrics & Table
 with tab_analytics:
@@ -817,7 +816,7 @@ with tab_analytics:
                 "Arrival Date": df_motion["to_date"],
                 "Distance (km)": df_motion["distance_km"]
             })
-            st.dataframe(df_motion_clean, use_container_width=True, hide_index=True)
+            st.dataframe(df_motion_clean, width="stretch", hide_index=True)
         else:
             st.info("No movement steps recorded (requires at least 2 geocoded points).")
 
@@ -844,7 +843,7 @@ with tab_analytics:
                 plot_bgcolor="rgba(0,0,0,0)",
                 paper_bgcolor="rgba(0,0,0,0)"
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
         else:
             st.info("No location statistics to map.")
 
@@ -861,7 +860,7 @@ with tab_analytics:
         }
         for ev in events
     ])
-    st.dataframe(raw_extracted_df, use_container_width=True, hide_index=True)
+    st.dataframe(raw_extracted_df, width="stretch", hide_index=True)
     
     csv = raw_extracted_df.to_csv(index=False).encode('utf-8')
     st.download_button(
