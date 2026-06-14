@@ -138,13 +138,23 @@ class SpatiotemporalExtractor:
                         locations.append(loc_name)
         else:
             # Fallback Rule-based Extraction using capitalized words
+            # Skip phrases containing titles, names, months, prepositions, or pronouns
+            non_location_words = {
+                "harold", "william", "edward", "godwinson", "king", "duke", "conqueror", 
+                "harald", "hardrada", "napoleon", "confessor", "lord", "earl", "pope", 
+                "queen", "prince", "emperor", "grand", "grande", "armée", "armėe",
+                "january", "february", "march", "april", "may", "june", "july", "august", 
+                "september", "october", "november", "december", "in", "on", "at", "by", 
+                "during", "under", "through", "while", "meanwhile", "he", "she", "they",
+                "immediately", "hearing", "french", "normans", "norman", "english", "russians", "norwegian",
+                "following", "monarch", "his", "her", "their", "our", "we", "i", "you"
+            }
             words = re.findall(r"\b[A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)*\b", sentence)
             for word in words:
                 word_clean = word.strip().strip(",.!?\"'")
-                if word_clean in ["Harold", "William", "Edward", "Godwinson", "King", "Duke", "Conqueror", 
-                                  "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday",
-                                  "January", "February", "March", "April", "May", "June", "July", "August", 
-                                  "September", "October", "November", "December", "English", "Normans", "French", "Russians", "Norway"]:
+                # Split phrase into individual words to check
+                sub_words = [w.lower() for w in re.split(r'\s+', word_clean)]
+                if any(sw in non_location_words for sw in sub_words):
                     continue
                 if word_clean.lower() in blacklist:
                     continue
