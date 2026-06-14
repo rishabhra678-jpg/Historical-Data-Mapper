@@ -644,10 +644,13 @@ with col_map:
             tooltip=f"Step {idx+1}: {ev['location']} ({ev['date_str']}) - {faction}"
         ).add_to(m)
         
-    # Render rectangular map using raw HTML representation to prevent iframe collapse on Streamlit Cloud
-    components.html(
-        m._repr_html_(),
-        height=400
+    # Render rectangular map using st_folium with a static key for high-performance rendering without iframe flashes
+    st_folium(
+        m,
+        height=400,
+        use_container_width=True,
+        key="chronomap_folium_map",
+        returned_objects=[]
     )
     
     # Chronological controls below the map
