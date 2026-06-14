@@ -244,12 +244,12 @@ def render_timeline_html(events, current_step):
                 padding-left: 5px;
                 padding-top: 5px;
             }}
-            .timeline-container {
+            .timeline-container {{
                 border-left: 3px dashed #cbd5e1;
                 padding-left: 24px;
                 margin-left: 20px;
                 position: relative;
-            }
+            }}
             .timeline-event {{
                 margin-bottom: 20px;
                 position: relative;
