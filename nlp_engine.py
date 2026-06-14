@@ -22,14 +22,8 @@ def get_spacy_nlp():
         logger.info(f"Loading spaCy model: {model_name}...")
         _NLP = spacy.load(model_name)
     except OSError:
-        logger.warning(f"spaCy model {model_name} not found. Attempting to download...")
-        try:
-            spacy.cli.download(model_name)
-            _NLP = spacy.load(model_name)
-            logger.info("spaCy model downloaded and loaded successfully.")
-        except Exception as e:
-            logger.error(f"Failed to download spaCy model: {e}. Falling back to Rule-based NLP.")
-            _NLP = None
+        logger.warning(f"spaCy model {model_name} not found. Falling back to Rule-based NLP.")
+        _NLP = None
     return _NLP
 
 
