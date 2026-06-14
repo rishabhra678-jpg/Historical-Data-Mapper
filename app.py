@@ -133,6 +133,13 @@ st.markdown(
         color: #dd6b20;
         font-weight: 600;
     }
+    
+    /* Force st_folium map iframe dimensions to resolve blank rendering issues */
+    iframe[title="streamlit_folium.st_folium"] {
+        height: 400px !important;
+        width: 100% !important;
+        border: none;
+    }
     </style>
     """,
     unsafe_allow_html=True
