@@ -353,17 +353,8 @@ with st.sidebar:
 
 # --- NLP PROCESSING ---
 with st.spinner("Processing narrative & geocoding locations..."):
-    # Temporarily force spacy status in extractor based on setting
-    if not use_spacy:
-        # Override the loading helper
-        import nlp_engine
-        nlp_engine.get_spacy_nlp = lambda: None
-    else:
-        # Restore spaCy load logic
-        import nlp_engine
-        from importlib import reload
-        reload(nlp_engine)
-        extractor = SpatiotemporalExtractor(geocoder)
+    # Toggle spacy status on the extractor
+    extractor.use_spacy = use_spacy
 
     # Extract spatiotemporal events
     events = extractor.process_narrative(source_text)

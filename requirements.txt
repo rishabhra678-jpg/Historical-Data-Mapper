@@ -6,3 +6,4 @@ streamlit>=1.30.0
 streamlit-folium>=0.15.0
 folium>=0.15.0
 plotly>=5.18.0
+https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.0/en_core_web_sm-3.7.0.tar.gz

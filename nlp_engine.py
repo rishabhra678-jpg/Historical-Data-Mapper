@@ -82,10 +82,11 @@ class SpatiotemporalExtractor:
     """
     def __init__(self, geocoder: HistoricalGeocoder):
         self.geocoder = geocoder
+        self.use_spacy = True
 
     def extract_sentences(self, text: str) -> List[str]:
         """Splits narrative into logical sentences using spaCy or simple splitters."""
-        nlp = get_spacy_nlp()
+        nlp = get_spacy_nlp() if self.use_spacy else None
         if nlp:
             doc = nlp(text)
             return [sent.text.strip() for sent in doc.sents if sent.text.strip()]
@@ -119,7 +120,7 @@ class SpatiotemporalExtractor:
 
     def extract_locations_from_sentence(self, sentence: str) -> List[str]:
         """Extracts candidate location names using spaCy NER, known fallbacks, and filters them."""
-        nlp = get_spacy_nlp()
+        nlp = get_spacy_nlp() if self.use_spacy else None
         locations = []
         
         # Blacklist of generic location phrases to skip
