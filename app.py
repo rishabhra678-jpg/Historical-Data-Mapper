@@ -10,7 +10,7 @@ import re
 import os
 
 from geocoder import HistoricalGeocoder
-from nlp_engine import SpatiotemporalExtractor, PRESETS
+from nlp_engine import SpatiotemporalExtractor, PRESETS, parse_date_string
 
 # Set page config for a widescreen layout and premium title
 st.set_page_config(
@@ -314,24 +314,50 @@ with st.sidebar:
     st.markdown("### 📥 Input Archive")
     
     # Preset selection
+    preset_options = list(PRESETS.keys())
+    if os.path.exists("hastings_data.json"):
+        preset_options.insert(0, "The Norman Conquest (1066) - Hastings JSON")
+        
     preset_choice = st.selectbox(
         "Select a Historical Preset:",
-        options=list(PRESETS.keys())
+        options=preset_options
     )
     
     # File Uploader
     uploaded_file = st.file_uploader(
-        "Or Upload custom Archive (.txt):",
-        type=["txt"]
+        "Or Upload custom Archive (.txt, .json):",
+        type=["txt", "json"]
     )
     
-    # Extract source text based on input method
+    # Extract source text or JSON data based on input method
     source_text = ""
+    is_json = False
+    json_data = None
+    
     if uploaded_file is not None:
-        source_text = uploaded_file.read().decode("utf-8")
-        st.success("Custom file uploaded successfully!")
+        file_name = uploaded_file.name.lower()
+        if file_name.endswith(".json"):
+            import json
+            try:
+                json_data = json.loads(uploaded_file.read().decode("utf-8"))
+                is_json = True
+                st.success("Custom JSON file uploaded successfully!")
+            except Exception as e:
+                st.error(f"Error parsing uploaded JSON: {e}")
+        else:
+            source_text = uploaded_file.read().decode("utf-8")
+            st.success("Custom text file uploaded successfully!")
     else:
-        source_text = PRESETS[preset_choice]
+        if preset_choice == "The Norman Conquest (1066) - Hastings JSON":
+            import json
+            try:
+                with open("hastings_data.json", encoding="utf-8") as f:
+                    json_data = json.load(f)
+                is_json = True
+            except Exception as e:
+                st.error(f"Error loading hastings_data.json: {e}")
+        else:
+            source_text = PRESETS[preset_choice]
 
     # NLP Settings Expander
     st.markdown("---")
@@ -358,14 +384,46 @@ with st.sidebar:
         unsafe_allow_html=True
     )
 
-# --- NLP PROCESSING ---
+# --- NLP / JSON PROCESSING ---
 with st.spinner("Processing narrative & geocoding locations..."):
-    # Toggle spacy status on the extractor
-    extractor.use_spacy = use_spacy
+    if is_json and json_data:
+        # Parse from JSON structure (hastings_data.json format)
+        events = []
+        raw_timeline = json_data.get("timeline", [])
+        for idx, item in enumerate(raw_timeline):
+            date_str = item.get("date", "Unknown Date")
+            lat = item.get("coordinates", {}).get("lat", None)
+            lng = item.get("coordinates", {}).get("lng", None)
+            events.append({
+                "id": idx + 1,
+                "sentence_idx": idx,
+                "date_str": date_str,
+                "sort_key": parse_date_string(date_str),
+                "location": item.get("event", "Event"),
+                "coords": (lat, lng) if (lat is not None and lng is not None) else None,
+                "sentence": item.get("description", ""),
+                "summary": item.get("event", "Event")
+            })
+        
+        # Sort events chronologically
+        events.sort(key=lambda x: (x["sort_key"] if x["sort_key"] else (9999, 12, 31), x["sentence_idx"]))
+        for idx, ev in enumerate(events):
+            ev["id"] = idx + 1
+            
+        motion_vectors = extractor.calculate_motion_statistics(events)
+        
+        # Build text description representation for the document viewer tab
+        source_text = f"Project: {json_data.get('project', 'Chronomap AI')}\n"
+        source_text += f"Narrative: {json_data.get('narrative', 'Norman Conquest')}\n\n"
+        for ev in events:
+            source_text += f"[{ev['date_str']}] {ev['location']}: {ev['sentence']}\n"
+    else:
+        # Toggle spacy status on the extractor
+        extractor.use_spacy = use_spacy
 
-    # Extract spatiotemporal events
-    events = extractor.process_narrative(source_text)
-    motion_vectors = extractor.calculate_motion_statistics(events)
+        # Extract spatiotemporal events
+        events = extractor.process_narrative(source_text)
+        motion_vectors = extractor.calculate_motion_statistics(events)
 
 # Ensure events exist
 if not events:
