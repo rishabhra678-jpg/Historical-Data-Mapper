@@ -536,13 +536,10 @@ with col_map:
             tooltip=f"Step {idx+1}: {ev['location']} ({ev['date_str']})"
         ).add_to(m)
         
-    # Render rectangular map
-    st_folium(
-        m, 
-        use_container_width=True, 
-        height=400, 
-        key=f"folium_map_render_step_{st.session_state.current_step}_preset_{preset_choice.replace(' ', '_')}",
-        returned_objects=[]
+    # Render rectangular map using raw HTML representation to prevent iframe collapse on Streamlit Cloud
+    components.html(
+        m._repr_html_(),
+        height=400
     )
     
     # Chronological controls below the map
