@@ -541,7 +541,7 @@ with col_map:
     # Render rectangular map
     st_folium(
         m, 
-        width="100%", 
+        use_container_width=True, 
         height=400, 
         key=f"folium_map_render_step_{st.session_state.current_step}_preset_{preset_choice.replace(' ', '_')}",
         returned_objects=[]
