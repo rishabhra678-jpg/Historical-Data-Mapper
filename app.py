@@ -12,6 +12,27 @@ import os
 from geocoder import HistoricalGeocoder
 from nlp_engine import SpatiotemporalExtractor, PRESETS, parse_date_string
 
+# Faction Color Configurations
+FACTION_COLORS = {
+    "Anglo-Saxon (Harold Godwinson)": "#ff4b4b",          # Red
+    "Norman (William of Normandy)": "#3b82f6",            # Blue
+    "Norwegian (Harald Hardrada)": "#10b981",             # Green
+    "Grande Armée (French)": "#3b82f6",                   # Blue
+    "Russian Empire": "#ff4b4b",                          # Red
+    "Main Narrative": "#ff4b4b",                          # Red
+    "Neutral": "#9ca3af"                                  # Gray
+}
+
+FACTION_COLORS_RGB = {
+    "Anglo-Saxon (Harold Godwinson)": "255, 75, 75",
+    "Norman (William of Normandy)": "59, 130, 246",
+    "Norwegian (Harald Hardrada)": "16, 185, 129",
+    "Grande Armée (French)": "59, 130, 246",
+    "Russian Empire": "255, 75, 75",
+    "Main Narrative": "255, 75, 75",
+    "Neutral": "156, 163, 175"
+}
+
 # Set page config for a widescreen layout and premium title
 st.set_page_config(
     page_title="Chronomap AI - Spatiotemporal Historical Dashboard",
@@ -161,22 +182,27 @@ def render_timeline_html(events, current_step):
         coords_str = f" ({ev['coords'][0]:.3f}, {ev['coords'][1]:.3f})" if ev['coords'] else ""
         is_active = (idx == current_step)
         
+        faction = ev.get("faction", "Main Narrative")
+        faction_color = FACTION_COLORS.get(faction, "#ff4b4b")
+        faction_rgb = FACTION_COLORS_RGB.get(faction, "255, 75, 75")
+        
         card_style = (
-            'background: rgba(255, 75, 75, 0.08); border: 1px solid rgba(255, 75, 75, 0.4); box-shadow: 0 4px 15px rgba(255,75,75,0.08); font-weight: 500;' 
+            f'background: rgba({faction_rgb}, 0.08); border: 1px solid {faction_color}; box-shadow: 0 4px 15px rgba({faction_rgb},0.08); font-weight: 500;' 
             if is_active else 
             'background: rgba(255, 255, 255, 0.9); border: 1px solid rgba(0, 0, 0, 0.05);'
         )
         badge_style = (
             'background-color: #ffdd59; box-shadow: 0 0 12px #ffdd59; border: 3px solid #f7f9fc;' 
             if is_active else 
-            'background-color: #ff4b4b; box-shadow: 0 0 8px rgba(255, 75, 75, 0.3); border: 3px solid #f7f9fc;'
+            f'background-color: {faction_color}; box-shadow: 0 0 8px rgba({faction_rgb}, 0.3); border: 3px solid #f7f9fc;'
         )
         active_id = 'id="active-event"' if is_active else ""
         
+        faction_label = f"&nbsp;|&nbsp; 🛡️ {faction}" if faction != "Main Narrative" else ""
         events_html += f"""
         <div class="timeline-event" {active_id} style="{card_style}">
             <div class="timeline-badge" style="{badge_style}"></div>
-            <span class="timeline-date" style="{'background-color: rgba(255,75,75,0.15);' if is_active else ''}">Event {idx+1} &nbsp;|&nbsp; {ev['date_str']}</span>
+            <span class="timeline-date" style="color: {faction_color}; background-color: rgba({faction_rgb}, 0.08); {'border: 1px solid ' + faction_color + ';' if is_active else ''}">Event {idx+1} {faction_label} &nbsp;|&nbsp; {ev['date_str']}</span>
             <div class="timeline-loc">{loc_str}<span style="font-size: 0.85rem; color:#6c757d; font-weight:normal;">{coords_str}</span></div>
             <div class="timeline-desc">{ev['sentence']}</div>
         </div>
@@ -218,12 +244,12 @@ def render_timeline_html(events, current_step):
                 padding-left: 5px;
                 padding-top: 5px;
             }}
-            .timeline-container {{
-                border-left: 3px solid #ff4b4b;
+            .timeline-container {
+                border-left: 3px dashed #cbd5e1;
                 padding-left: 24px;
                 margin-left: 20px;
                 position: relative;
-            }}
+            }
             .timeline-event {{
                 margin-bottom: 20px;
                 position: relative;
@@ -315,8 +341,6 @@ with st.sidebar:
     
     # Preset selection
     preset_options = list(PRESETS.keys())
-    if os.path.exists("hastings_data.json"):
-        preset_options.insert(0, "The Norman Conquest (1066) - Hastings JSON")
         
     preset_choice = st.selectbox(
         "Select a Historical Preset:",
@@ -348,16 +372,7 @@ with st.sidebar:
             source_text = uploaded_file.read().decode("utf-8")
             st.success("Custom text file uploaded successfully!")
     else:
-        if preset_choice == "The Norman Conquest (1066) - Hastings JSON":
-            import json
-            try:
-                with open("hastings_data.json", encoding="utf-8") as f:
-                    json_data = json.load(f)
-                is_json = True
-            except Exception as e:
-                st.error(f"Error loading hastings_data.json: {e}")
-        else:
-            source_text = PRESETS[preset_choice]
+        source_text = PRESETS[preset_choice]
 
     # NLP Settings Expander
     st.markdown("---")
@@ -394,15 +409,23 @@ with st.spinner("Processing narrative & geocoding locations..."):
             date_str = item.get("date", "Unknown Date")
             lat = item.get("coordinates", {}).get("lat", None)
             lng = item.get("coordinates", {}).get("lng", None)
+            
+            description = item.get("description", "")
+            event_name = item.get("event", "Event")
+            faction = item.get("faction", None)
+            if not faction:
+                faction = extractor.classify_faction(description, event_name, json_data.get("narrative", ""))
+                
             events.append({
                 "id": idx + 1,
                 "sentence_idx": idx,
                 "date_str": date_str,
                 "sort_key": parse_date_string(date_str),
-                "location": item.get("event", "Event"),
+                "location": event_name,
                 "coords": (lat, lng) if (lat is not None and lng is not None) else None,
-                "sentence": item.get("description", ""),
-                "summary": item.get("event", "Event")
+                "sentence": description,
+                "summary": event_name,
+                "faction": faction
             })
         
         # Sort events chronologically
@@ -516,43 +539,54 @@ with col_map:
               ("cartodb positron" if map_style == "CartoDB Positron" else "OpenStreetMap")
     )
     
-    # Draw full path in dashed gray
-    path_coords_full = [ev["coords"] for ev in geocoded_events]
-    if len(path_coords_full) > 1:
-        folium.PolyLine(
-            locations=path_coords_full,
-            color="#6a6f7a",
-            weight=2,
-            opacity=0.3,
-            dash_array="5, 10"
-        ).add_to(m)
-    
-    # Draw active path up to current step
-    active_geo_idx = 0
-    for idx, g_ev in enumerate(geocoded_events):
-        if g_ev["id"] <= active_event["id"]:
-            active_geo_idx = idx
-            
-    path_coords_active = [ev["coords"] for ev in geocoded_events[:active_geo_idx + 1]]
-    if len(path_coords_active) > 1:
-        AntPath(
-            locations=path_coords_active,
-            dash_array=[10, 20],
-            delay=1000,
-            color="#ff4b4b",
-            pulse_color="#ffffff",
-            weight=4,
-            opacity=0.9,
-            tooltip="Active Route Leg"
-        ).add_to(m)
+    # Group events by faction to draw separate tracks
+    factions_data = {}
+    for ev in geocoded_events:
+        faction = ev.get("faction", "Main Narrative")
+        if faction not in factions_data:
+            factions_data[faction] = []
+        factions_data[faction].append(ev)
         
+    # Draw paths for each faction
+    for faction, faction_events in factions_data.items():
+        color = FACTION_COLORS.get(faction, "#ff4b4b")
+        
+        # Draw full track in dashed color
+        path_coords_full = [ev["coords"] for ev in faction_events]
+        if len(path_coords_full) > 1:
+            folium.PolyLine(
+                locations=path_coords_full,
+                color=color,
+                weight=2,
+                opacity=0.3,
+                dash_array="5, 10",
+                tooltip=f"{faction} Route"
+            ).add_to(m)
+            
+        # Draw active path for this faction up to current active event
+        active_faction_events = [ev for ev in faction_events if ev["id"] <= active_event["id"]]
+        path_coords_active = [ev["coords"] for ev in active_faction_events]
+        if len(path_coords_active) > 1:
+            AntPath(
+                locations=path_coords_active,
+                dash_array=[10, 20],
+                delay=1000,
+                color=color,
+                pulse_color="#ffffff",
+                weight=4,
+                opacity=0.9,
+                tooltip=f"Active {faction} Route"
+            ).add_to(m)
+            
     # Place markers
     for idx, ev in enumerate(geocoded_events):
         is_active = (ev["id"] == active_event["id"])
+        faction = ev.get("faction", "Main Narrative")
+        faction_color = FACTION_COLORS.get(faction, "#ff4b4b")
         
-        marker_color = "#ffdd59" if is_active else "#ff4b4b"
-        border_color = "#ffffff" if is_active else "white"
-        glow = "0 0 15px #ffdd59" if is_active else "0 0 6px rgba(255,75,75,0.6)"
+        marker_color = "#ffdd59" if is_active else faction_color
+        border_color = faction_color if is_active else "#ffffff"
+        glow = f"0 0 15px {faction_color}" if is_active else "0 0 6px rgba(0,0,0,0.3)"
         z_index = 1000 if is_active else 100
         scale = "scale(1.25)" if is_active else "scale(1.0)"
         
@@ -576,8 +610,9 @@ with col_map:
         """
         
         popup_html = f"""
-        <div style="font-family: 'Arial', sans-serif; font-size: 12px; line-height: 1.4; color: #333333; max-width: 250px;">
-            <h4 style="margin: 0 0 5px 0; color: #ff4b4b;">Step {idx+1}: {ev['location']}</h4>
+        <div style="font-family: 'Outfit', sans-serif; font-size: 12px; line-height: 1.4; color: #333333; max-width: 250px;">
+            <h4 style="margin: 0 0 5px 0; color: {faction_color};">Step {idx+1}: {ev['location']}</h4>
+            <b>Faction:</b> {faction}<br/>
             <b>Date:</b> {ev['date_str']}<br/>
             <b>Event:</b> {ev['sentence']}<br/>
         </div>
@@ -591,7 +626,7 @@ with col_map:
                 icon_size=(22, 22),
                 icon_anchor=(11, 11)
             ),
-            tooltip=f"Step {idx+1}: {ev['location']} ({ev['date_str']})"
+            tooltip=f"Step {idx+1}: {ev['location']} ({ev['date_str']}) - {faction}"
         ).add_to(m)
         
     # Render rectangular map using raw HTML representation to prevent iframe collapse on Streamlit Cloud
@@ -651,18 +686,32 @@ with col_map:
     # Display distance traveler
     with col_dist:
         if st.session_state.current_step > 0 and active_event["coords"] is not None:
+            active_faction = active_event.get("faction", "Main Narrative")
+            faction_color = FACTION_COLORS.get(active_faction, "#ff4b4b")
+            faction_rgb = FACTION_COLORS_RGB.get(active_faction, "255, 75, 75")
+            
             prev_geo = None
             for temp_ev in reversed(events[:st.session_state.current_step]):
-                if temp_ev["coords"] is not None:
+                if temp_ev["coords"] is not None and temp_ev.get("faction") == active_faction:
                     prev_geo = temp_ev
                     break
+                    
             if prev_geo:
                 from geopy.distance import geodesic
                 distance = geodesic(prev_geo["coords"], active_event["coords"]).kilometers
                 st.markdown(
                     f"""
-                    <div style="background: rgba(255, 75, 75, 0.05); padding: 5px 10px; border-radius: 6px; border: 1px solid rgba(255, 75, 75, 0.15); font-size: 0.85rem; color: #ff4b4b; font-weight: 500; height: 38px; line-height: 28px; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                        🚚 <b>+{distance:,.1f} km</b> from <i>{prev_geo['location']}</i>
+                    <div style="background: rgba({faction_rgb}, 0.05); padding: 5px 10px; border-radius: 6px; border: 1px solid {faction_color}; font-size: 0.85rem; color: {faction_color}; font-weight: 500; height: 38px; line-height: 28px; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        🚚 <b>+{distance:,.1f} km</b> from <i>{prev_geo['location']}</i> ({active_faction.split(' ')[0]})
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+            else:
+                st.markdown(
+                    f"""
+                    <div style="background: rgba({faction_rgb}, 0.05); padding: 5px 10px; border-radius: 6px; border: 1px solid {faction_color}; font-size: 0.85rem; color: {faction_color}; font-weight: 500; height: 38px; line-height: 28px; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        🚩 <b>Start of track</b> ({active_faction.split(' ')[0]})
                     </div>
                     """,
                     unsafe_allow_html=True

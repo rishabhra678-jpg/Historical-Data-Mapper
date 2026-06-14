@@ -120,7 +120,8 @@ class SpatiotemporalExtractor:
         # Blacklist of generic location phrases to skip
         blacklist = {"south coast", "north coast", "east coast", "west coast", 
                      "northern england", "southern england", "neman river", 
-                     "remnants", "remnant", "south", "north", "east", "west"}
+                     "remnants", "remnant", "south", "north", "east", "west",
+                     "silk road", "channel", "english channel", "sea", "ocean"}
         
         # 1. First extract using spaCy NER if available
         if nlp:
@@ -191,10 +192,52 @@ class SpatiotemporalExtractor:
 
         return filtered_locs
 
+    def classify_faction(self, sentence: str, location: Optional[str], text_context: str = "") -> str:
+        """
+        Classifies the faction/army for a given event sentence.
+        """
+        sentence_lc = sentence.lower()
+        location_lc = (location or "").lower()
+        text_lc = text_context.lower()
+        
+        # 1. Check if the text matches the Norman Conquest
+        is_norman_conquest = "hastings" in text_lc or "harold" in text_lc or "william" in text_lc or "1066" in text_lc
+        is_napoleon = "napoleon" in text_lc or "grande armée" in text_lc or "1812" in text_lc or "berezina" in text_lc
+        
+        if is_norman_conquest:
+            # Factions: "Anglo-Saxon (Harold Godwinson)", "Norman (William of Normandy)", "Norwegian (Harald Hardrada)"
+            # Checks for Norwegians first (Harald Hardrada, Norway)
+            if any(kw in sentence_lc or kw in location_lc for kw in ["hardrada", "norway", "norwegian", "fulford"]):
+                return "Norwegian (Harald Hardrada)"
+            
+            # Checks for Normans (William, Normandy, Saint-Valery, Pevensey, Hastings, Kent, Westminster Abbey)
+            if any(kw in sentence_lc or kw in location_lc for kw in ["william", "normandy", "norman", "saint-valery", "pevensey", "hastings", "kent", "abbey"]):
+                return "Norman (William of Normandy)"
+                
+            # Checks for Anglo-Saxons (Edward, Confessor, Harold, Godwinson, Stamford Bridge, Westminster)
+            if any(kw in sentence_lc or kw in location_lc for kw in ["harold", "godwinson", "edward", "confessor", "westminster", "stamford bridge"]):
+                return "Anglo-Saxon (Harold Godwinson)"
+                
+            # Default fallback for Norman Conquest
+            return "Anglo-Saxon (Harold Godwinson)"
+            
+        elif is_napoleon:
+            # Factions: "Grande Armée (French)", "Russian Empire"
+            # Checks for Russians (Russian, Borodino, Moscow, Maloyaroslavets, Berezina)
+            if any(kw in sentence_lc or kw in location_lc for kw in ["russian", "russians", "burning", "deserted", "ablaze", "withdraw", "borodino", "moscow", "maloyaroslavets", "berezina"]):
+                if "entered moscow" in sentence_lc or "retreat from moscow" in sentence_lc:
+                    return "Grande Armée (French)"
+                return "Russian Empire"
+            # Default
+            return "Grande Armée (French)"
+            
+        # Default for other narratives
+        return "Main Narrative"
+
     def process_narrative(self, raw_text: str) -> List[Dict[str, Any]]:
         """
         Parses raw text, links dates and locations, geocodes coordinates,
-        and returns a sorted timeline of spatiotemporal events.
+        and returns a sorted timeline of spatiotemporal events with faction assignments.
         """
         sentences = self.extract_sentences(raw_text)
         events = []
@@ -217,6 +260,7 @@ class SpatiotemporalExtractor:
                 for loc in locations:
                     coords = self.geocoder.geocode(loc)
                     if coords:
+                        faction = self.classify_faction(sentence, loc, raw_text)
                         events.append({
                             "id": len(events) + 1,
                             "sentence_idx": index,
@@ -225,12 +269,14 @@ class SpatiotemporalExtractor:
                             "location": loc,
                             "coords": coords,
                             "sentence": sentence,
-                            "summary": sentence[:150] + "..." if len(sentence) > 150 else sentence
+                            "summary": sentence[:150] + "..." if len(sentence) > 150 else sentence,
+                            "faction": faction
                         })
             else:
                 # If there is a date but no location, and we are not starting, see if we can anchor it
                 # to the last known location, or save it as a date-anchor event without coords (will not plot on map).
                 if date_found:
+                    faction = self.classify_faction(sentence, None, raw_text)
                     events.append({
                         "id": len(events) + 1,
                         "sentence_idx": index,
@@ -239,7 +285,8 @@ class SpatiotemporalExtractor:
                         "location": None,
                         "coords": None,
                         "sentence": sentence,
-                        "summary": sentence[:150] + "..." if len(sentence) > 150 else sentence
+                        "summary": sentence[:150] + "..." if len(sentence) > 150 else sentence,
+                        "faction": faction
                     })
 
         # Sort events chronologically based on their parsed dates
@@ -263,34 +310,45 @@ class SpatiotemporalExtractor:
 
     def calculate_motion_statistics(self, events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
-        Computes motion vectors (distance, speed, and heading) between sequential geocoded points.
+        Computes motion vectors (distance, speed, and heading) between sequential geocoded points
+        within the same faction/group, ensuring historical relevance.
         """
-        # Filter events with valid coordinates
-        geo_events = [ev for ev in events if ev["coords"] is not None]
-        
+        # Group events by faction
+        factions_data = {}
+        for ev in events:
+            if ev["coords"] is not None:
+                faction = ev.get("faction", "Main Narrative")
+                if faction not in factions_data:
+                    factions_data[faction] = []
+                factions_data[faction].append(ev)
+                
         motion_vectors = []
-        for i in range(len(geo_events) - 1):
-            start_event = geo_events[i]
-            end_event = geo_events[i+1]
-            
-            p1 = start_event["coords"]
-            p2 = end_event["coords"]
-            
-            # Distance in km
-            distance = round(geodesic(p1, p2).kilometers, 2)
-            
-            motion_vectors.append({
-                "from_id": start_event["id"],
-                "to_id": end_event["id"],
-                "from_loc": start_event["location"],
-                "to_loc": end_event["location"],
-                "from_date": start_event["date_str"],
-                "to_date": end_event["date_str"],
-                "coords_from": p1,
-                "coords_to": p2,
-                "distance_km": distance
-            })
-            
+        for faction, faction_events in factions_data.items():
+            for i in range(len(faction_events) - 1):
+                start_event = faction_events[i]
+                end_event = faction_events[i+1]
+                
+                p1 = start_event["coords"]
+                p2 = end_event["coords"]
+                
+                # Distance in km
+                distance = round(geodesic(p1, p2).kilometers, 2)
+                
+                motion_vectors.append({
+                    "from_id": start_event["id"],
+                    "to_id": end_event["id"],
+                    "from_loc": start_event["location"],
+                    "to_loc": end_event["location"],
+                    "from_date": start_event["date_str"],
+                    "to_date": end_event["date_str"],
+                    "coords_from": p1,
+                    "coords_to": p2,
+                    "distance_km": distance,
+                    "faction": faction
+                })
+                
+        # Sort motion vectors by to_id to keep them in order of the timeline
+        motion_vectors.sort(key=lambda x: x["to_id"])
         return motion_vectors
 
 

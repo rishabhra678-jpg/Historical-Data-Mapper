@@ -11,17 +11,28 @@ logger = logging.getLogger("geocoder")
 # Predefined coordinates dictionary for common historical locations.
 # Essential for offline capabilities, rate-limit avoidance, and resolving ambiguous names.
 HISTORICAL_FALLBACKS: Dict[str, Tuple[float, float]] = {
+    # General Regions & Factions (preventing incorrect geocoding to other countries)
+    "england": (52.3555, -1.1743),
+    "russia": (55.0, 35.0),
+    "china": (39.9042, 116.4074),
+    "france": (46.2276, 2.2137),
+    "persia": (32.4279, 53.6880),
+
     # Norman Conquest 1066 Sites
     "normandy": (49.1804, -0.3703),           # Caen, Capital of Normandy
     "saint-valery-sur-somme": (50.1843, 1.6294), # Port where William's fleet gathered
     "pevensey": (50.8197, 0.3347),            # William's landing site in England
     "hastings": (50.8542, 0.5735),            # Battle of Hastings region
-    "battle": (50.9161, 0.4851),              # Actual site of the Battle of Hastings (Battle Abbey)
+    "modern battle": (50.9161, 0.4851),       # Town of Battle, East Sussex
+    "battle abbey": (50.9161, 0.4851),        # Town of Battle, East Sussex
+    "battle of hastings": (50.9095, 0.4798),   # Actual engagement site
     "york": (53.9599, -1.0873),               # City of York
     "fulford": (53.9317, -1.0667),            # Battle of Fulford
+    "battle of fulford": (53.9306, -1.0696),
     "stamford bridge": (53.9877, -0.9022),     # Battle of Stamford Bridge
     "london": (51.5074, -0.1278),             # Capital city
     "westminster": (51.4996, -0.1348),        # Coronation site (Westminster Abbey)
+    "westminster abbey": (51.4994, -0.1274),
     "waltham abbey": (51.6888, -0.0102),       # Burial site of King Harold II
     "norway": (60.4720, 8.4689),              # Harald Hardrada's kingdom
     "denmark": (56.2639, 9.5018),             # King Sweyn's origin
@@ -32,13 +43,16 @@ HISTORICAL_FALLBACKS: Dict[str, Tuple[float, float]] = {
     # General/Napoleon Russian Campaign 1812 Sites
     "moscow": (55.7558, 37.6173),
     "borodino": (55.5283, 35.8208),
+    "battle of borodino": (55.5283, 35.8208),
     "smolensk": (54.7826, 32.0453),
     "vilnius": (54.6872, 25.2797),
     "kaunas": (54.8985, 23.9036),
     "krasny": (54.5619, 31.4253),
     "vyazma": (55.2104, 34.2984),
     "maloyaroslavets": (55.0136, 36.4678),
+    "battle of maloyaroslavets": (55.0136, 36.4678),
     "berezina": (54.2694, 28.6011),
+    "berezina river": (54.2694, 28.6011),
     "st. petersburg": (59.9343, 30.3351),
     "saint petersburg": (59.9343, 30.3351),
     "paris": (48.8566, 2.3522),
@@ -49,8 +63,12 @@ HISTORICAL_FALLBACKS: Dict[str, Tuple[float, float]] = {
     "jerusalem": (31.7683, 35.2137),
     "tabriz": (38.0962, 46.2738),
     "hormuz": (27.0983, 56.4622),
+    "khorasan": (36.2971, 59.6063),
     "balkh": (36.7581, 66.8989),
+    "pamir mountains": (38.9308, 72.0339),
     "kashgar": (39.4677, 75.9896),
+    "silk road": (39.4677, 75.9896),          # Center on Silk Road hub Kashgar
+    "taklamakan desert": (38.9868, 82.3249),
     "lop nor": (40.1667, 90.5000),
     "dunhuang": (40.1421, 94.6618),
     "shangdu": (42.2667, 116.1833),
@@ -123,25 +141,25 @@ class HistoricalGeocoder:
     def geocode(self, location_name: str) -> Optional[Tuple[float, float]]:
         """
         Geocodes a location name to (latitude, longitude) coordinates.
-        Checks cache database -> fallback dictionary -> external API.
+        Checks fallback dictionary -> cache database -> external API.
         """
         clean_name = location_name.strip()
         if not clean_name:
             return None
 
-        # 1. Check local DB cache
-        cached = self._get_from_cache(clean_name)
-        if cached:
-            logger.info(f"Geocoding [Cache Hit]: '{clean_name}' -> {cached}")
-            return cached
-
-        # 2. Check historical fallbacks (helps with ancient/historical names)
+        # 1. Check historical fallbacks first (ensures manually verified coordinates take precedence)
         lookup_key = clean_name.lower()
         if lookup_key in HISTORICAL_FALLBACKS:
             coords = HISTORICAL_FALLBACKS[lookup_key]
             logger.info(f"Geocoding [Fallback Match]: '{clean_name}' -> {coords}")
             self._save_to_cache(clean_name, coords[0], coords[1])
             return coords
+
+        # 2. Check local DB cache
+        cached = self._get_from_cache(clean_name)
+        if cached:
+            logger.info(f"Geocoding [Cache Hit]: '{clean_name}' -> {cached}")
+            return cached
 
         # 3. Use External Nominatim Geocoder API
         try:
