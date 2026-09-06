@@ -383,8 +383,14 @@ with st.sidebar:
             
         map_style = st.selectbox(
             "Map Theme:",
-            options=["CartoDB Dark Matter", "CartoDB Positron", "OpenStreetMap"],
-            index=1
+            options=[
+                "National Geographic (Historical)",
+                "OpenStreetMap (Standard)",
+                "Esri Topographic",
+                "Esri Satellite Imagery",
+                "Esri World Street"
+            ],
+            index=0
         )
         
     st.markdown("---")
@@ -545,13 +551,46 @@ with col_map:
     if active_coords is None:
         active_coords = fallback_center
     
+    # Map Tile Configuration without API key requirements
+    tile_providers = {
+        "National Geographic (Historical)": {
+            "tiles": "https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}",
+            "attr": "Tiles &copy; Esri &mdash; National Geographic, DeLorme, NAVTEQ"
+        },
+        "OpenStreetMap (Standard)": {
+            "tiles": "OpenStreetMap",
+            "attr": None
+        },
+        "Esri Topographic": {
+            "tiles": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
+            "attr": "Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, USGS"
+        },
+        "Esri Satellite Imagery": {
+            "tiles": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+            "attr": "Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics"
+        },
+        "Esri World Street": {
+            "tiles": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+            "attr": "Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ"
+        }
+    }
+    
+    selected_tile = tile_providers.get(map_style, tile_providers["National Geographic (Historical)"])
+    
     # Initialize Folium Map
-    m = folium.Map(
-        location=active_coords,
-        zoom_start=zoom_val,
-        tiles="cartodb dark_matter" if map_style == "CartoDB Dark Matter" else 
-              ("cartodb positron" if map_style == "CartoDB Positron" else "OpenStreetMap")
-    )
+    if selected_tile["attr"]:
+        m = folium.Map(
+            location=active_coords,
+            zoom_start=zoom_val,
+            tiles=selected_tile["tiles"],
+            attr=selected_tile["attr"]
+        )
+    else:
+        m = folium.Map(
+            location=active_coords,
+            zoom_start=zoom_val,
+            tiles=selected_tile["tiles"]
+        )
     
     # Group events by faction to draw separate tracks
     factions_data = {}
