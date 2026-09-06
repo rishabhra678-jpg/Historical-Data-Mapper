@@ -384,6 +384,8 @@ with st.sidebar:
         map_style = st.selectbox(
             "Map Theme:",
             options=[
+                "CartoDB Positron (Light Minimal)",
+                "CartoDB Dark Matter (Dark)",
                 "National Geographic (Historical)",
                 "OpenStreetMap (Standard)",
                 "Esri Topographic",
@@ -392,6 +394,15 @@ with st.sidebar:
             ],
             index=0
         )
+        
+        carto_api_key = ""
+        if "CartoDB" in map_style:
+            carto_api_key = st.text_input(
+                "CARTO API Key (Optional):",
+                value="",
+                type="password",
+                help="Optional: Enter your free CARTO API key (from carto.com/basemaps/apikey) to remove watermarks."
+            )
         
     st.markdown("---")
     st.markdown(
@@ -551,8 +562,22 @@ with col_map:
     if active_coords is None:
         active_coords = fallback_center
     
-    # Map Tile Configuration without API key requirements
+    # Map Tile Configuration
+    carto_positron_url = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+    carto_dark_url = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+    if carto_api_key:
+        carto_positron_url += f"?key={carto_api_key}"
+        carto_dark_url += f"?key={carto_api_key}"
+        
     tile_providers = {
+        "CartoDB Positron (Light Minimal)": {
+            "tiles": carto_positron_url if carto_api_key else "CartoDB Positron",
+            "attr": "&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a> contributors &copy; <a href='https://carto.com/attributions'>CARTO</a>" if carto_api_key else None
+        },
+        "CartoDB Dark Matter (Dark)": {
+            "tiles": carto_dark_url if carto_api_key else "CartoDB dark_matter",
+            "attr": "&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a> contributors &copy; <a href='https://carto.com/attributions'>CARTO</a>" if carto_api_key else None
+        },
         "National Geographic (Historical)": {
             "tiles": "https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}",
             "attr": "Tiles &copy; Esri &mdash; National Geographic, DeLorme, NAVTEQ"
@@ -575,7 +600,7 @@ with col_map:
         }
     }
     
-    selected_tile = tile_providers.get(map_style, tile_providers["National Geographic (Historical)"])
+    selected_tile = tile_providers.get(map_style, tile_providers["CartoDB Positron (Light Minimal)"])
     
     # Initialize Folium Map
     if selected_tile["attr"]:
