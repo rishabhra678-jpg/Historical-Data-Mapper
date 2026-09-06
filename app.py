@@ -395,13 +395,13 @@ with st.sidebar:
             index=0
         )
         
-        carto_api_key = ""
+        carto_api_key = "cb1_2ykz_1_b942fc23846ba457e2941175"
         if "CartoDB" in map_style:
             carto_api_key = st.text_input(
-                "CARTO API Key (Optional):",
-                value="",
+                "CARTO API Key:",
+                value=carto_api_key,
                 type="password",
-                help="Optional: Enter your free CARTO API key (from carto.com/basemaps/apikey) to remove watermarks."
+                help="Active CARTO API key used for Positron and Dark Matter basemaps."
             )
         
     st.markdown("---")
@@ -563,20 +563,19 @@ with col_map:
         active_coords = fallback_center
     
     # Map Tile Configuration
-    carto_positron_url = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-    carto_dark_url = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-    if carto_api_key:
-        carto_positron_url += f"?key={carto_api_key}"
-        carto_dark_url += f"?key={carto_api_key}"
+    carto_key = carto_api_key if carto_api_key else "cb1_2ykz_1_b942fc23846ba457e2941175"
+    carto_positron_url = f"https://{{s}}.basemaps.cartocdn.com/light_all/{{z}}/{{x}}/{{y}}.png?key={carto_key}"
+    carto_dark_url = f"https://{{s}}.basemaps.cartocdn.com/dark_all/{{z}}/{{x}}/{{y}}.png?key={carto_key}"
+    carto_attr = "&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a> contributors &copy; <a href='https://carto.com/attributions'>CARTO</a>"
         
     tile_providers = {
         "CartoDB Positron (Light Minimal)": {
-            "tiles": carto_positron_url if carto_api_key else "CartoDB Positron",
-            "attr": "&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a> contributors &copy; <a href='https://carto.com/attributions'>CARTO</a>" if carto_api_key else None
+            "tiles": carto_positron_url,
+            "attr": carto_attr
         },
         "CartoDB Dark Matter (Dark)": {
-            "tiles": carto_dark_url if carto_api_key else "CartoDB dark_matter",
-            "attr": "&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a> contributors &copy; <a href='https://carto.com/attributions'>CARTO</a>" if carto_api_key else None
+            "tiles": carto_dark_url,
+            "attr": carto_attr
         },
         "National Geographic (Historical)": {
             "tiles": "https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}",
