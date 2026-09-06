@@ -1,28 +1,35 @@
 import re
-import spacy
 import datetime
 import logging
 from typing import List, Dict, Any, Tuple, Optional
 from geopy.distance import geodesic
-import spacy.cli
 from geocoder import HistoricalGeocoder
+
+try:
+    import spacy
+    SPACY_AVAILABLE = True
+except ImportError:
+    spacy = None
+    SPACY_AVAILABLE = False
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("nlp_engine")
 
-# Try loading spaCy, download if model not found, fallback to regex if download fails.
+# Try loading spaCy, fallback to rule-based regex if model not found or unavailable.
 _NLP = None
 def get_spacy_nlp():
     global _NLP
     if _NLP is not None:
         return _NLP
+    if not SPACY_AVAILABLE or spacy is None:
+        return None
     
     model_name = "en_core_web_sm"
     try:
         logger.info(f"Loading spaCy model: {model_name}...")
         _NLP = spacy.load(model_name)
-    except OSError:
-        logger.warning(f"spaCy model {model_name} not found. Falling back to Rule-based NLP.")
+    except Exception as e:
+        logger.warning(f"spaCy model {model_name} not found or failed to load ({e}). Falling back to Rule-based NLP.")
         _NLP = None
     return _NLP
 

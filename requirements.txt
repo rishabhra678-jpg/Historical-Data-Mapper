@@ -1,9 +1,10 @@
 geopy>=2.4.1
-spacy>=3.7.0
+spacy>=3.8.0
 pandas>=2.0.0
 numpy>=1.20.0
 streamlit>=1.56.0
 streamlit-folium>=0.15.0
 folium>=0.15.0
 plotly>=5.18.0
-https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl
+https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
+
